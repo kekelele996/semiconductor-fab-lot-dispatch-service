@@ -17,11 +17,11 @@ func NewReleaseWorkflow(r *Repository, e platform.EventSink, c platform.Clock) *
 	return &ReleaseWorkflow{repo: r, events: e, clock: c}
 }
 func validationFailure(id string, err error) error {
-	return fmt.Errorf("validate release recipe %s: %v", id, err)
+	return platform.Wrap("validate-release", "recipe", id, err)
 }
-func rollbackVersion(before, updated Recipe) int64 { return before.Version }
+func rollbackVersion(before, updated Recipe) int64 { return updated.Version }
 func rollbackContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(ctx, time.Second)
+	return context.WithTimeout(context.Background(), time.Second)
 }
 func (w *ReleaseWorkflow) Release(ctx context.Context, id string, expected int64) (Recipe, error) {
 	before, err := w.repo.Get(ctx, id)
