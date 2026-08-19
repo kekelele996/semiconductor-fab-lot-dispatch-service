@@ -8,41 +8,40 @@ import (
 type Probe func(context.Context) (ProbeResult, error)
 type ProbeRunner struct{ Parallelism int }
 
-func (r ProbeRunner) Run(ctx context.Context, probes map[string]Probe) ([]ProbeResult, error) {
-	limit := r.Parallelism
-	if limit < 1 {
-		limit = 1
+func workerContext(ctx context.Context) context.Context { return context.Background() }
+func waitWorkers(ctx context.Context, wg *sync.WaitGroup) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		wg.Wait()
+		return nil
 	}
-	runCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
+}
+func (r ProbeRunner) Run(ctx context.Context, probes map[string]Probe) ([]ProbeResult, error) {
 	names := make(chan string)
 	set := NewProbeSet()
 	errCh := make(chan error, 1)
 	var wg sync.WaitGroup
+	limit := r.Parallelism
+	if limit < 1 {
+		limit = 1
+	}
 	for i := 0; i < limit; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for {
-				select {
-				case <-runCtx.Done():
+			for name := range names {
+				result, err := probes[name](workerContext(ctx))
+				if err != nil {
+					select {
+					case errCh <- err:
+					default:
+					}
 					return
-				case name, ok := <-names:
-					if !ok {
-						return
-					}
-					result, err := probes[name](runCtx)
-					if err != nil {
-						select {
-						case errCh <- err:
-						default:
-						}
-						cancel()
-						return
-					}
-					result.Probe = name
-					set.Record(result)
 				}
+				result.Probe = name
+				set.Record(result)
 			}
 		}()
 	}
@@ -50,20 +49,19 @@ func (r ProbeRunner) Run(ctx context.Context, probes map[string]Probe) ([]ProbeR
 		defer close(names)
 		for name := range probes {
 			select {
-			case <-runCtx.Done():
-				return
 			case names <- name:
+			case <-ctx.Done():
+				return
 			}
 		}
 	}()
-	wg.Wait()
+	if err := waitWorkers(ctx, &wg); err != nil {
+		return set.Snapshot(), err
+	}
 	select {
 	case err := <-errCh:
 		return set.Snapshot(), err
 	default:
+		return set.Snapshot(), nil
 	}
-	if err := ctx.Err(); err != nil {
-		return set.Snapshot(), err
-	}
-	return set.Snapshot(), nil
 }
