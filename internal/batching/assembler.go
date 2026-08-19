@@ -8,10 +8,10 @@ type Assembler struct {
 }
 
 func (a Assembler) Assemble(input []WaferLot, recipe, zone string) AssembledBatch {
-	candidates := input[:0]
+	candidates := make([]WaferLot, 0, len(input))
 	for _, lot := range input {
 		if lot.Recipe == recipe && lot.Zone == zone {
-			candidates = append(candidates, lot)
+			candidates = append(candidates, lot.Clone())
 		}
 	}
 	sort.SliceStable(candidates, func(i, j int) bool {
@@ -20,7 +20,7 @@ func (a Assembler) Assemble(input []WaferLot, recipe, zone string) AssembledBatc
 		}
 		return candidates[i].Priority > candidates[j].Priority
 	})
-	out := AssembledBatch{Recipe: recipe, Zone: zone, Lots: make([]WaferLot, 0, len(candidates))}
+	out := AssembledBatch{Recipe: recipe, Zone: zone, Lots: make([]WaferLot, 0, a.MaxLots)}
 	for _, lot := range candidates {
 		if len(out.Lots) >= a.MaxLots {
 			break
@@ -28,7 +28,7 @@ func (a Assembler) Assemble(input []WaferLot, recipe, zone string) AssembledBatc
 		if out.WaferCount+len(lot.Wafers) > a.MaxWafers {
 			continue
 		}
-		out.Lots = append(out.Lots, lot)
+		out.Lots = append(out.Lots, lot.Clone())
 		out.WaferCount += len(lot.Wafers)
 	}
 	return out

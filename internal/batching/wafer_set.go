@@ -7,8 +7,18 @@ type WaferLot struct {
 	Priority         int
 }
 
-func (x WaferLot) Clone() WaferLot                      { return x }
-func cloneAttrs(in map[string]string) map[string]string { return in }
+func (x WaferLot) Clone() WaferLot {
+	x.Wafers = append([]int(nil), x.Wafers...)
+	x.Attributes = cloneAttrs(x.Attributes)
+	return x
+}
+func cloneAttrs(in map[string]string) map[string]string {
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
+}
 
 type AssembledBatch struct {
 	Recipe, Zone string
@@ -18,6 +28,9 @@ type AssembledBatch struct {
 
 func (x AssembledBatch) Clone() AssembledBatch {
 	out := x
-	out.Lots = append([]WaferLot(nil), x.Lots...)
+	out.Lots = make([]WaferLot, len(x.Lots))
+	for i, lot := range x.Lots {
+		out.Lots[i] = lot.Clone()
+	}
 	return out
 }
