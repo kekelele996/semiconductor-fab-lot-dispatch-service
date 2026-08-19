@@ -26,18 +26,17 @@ func (t *ReservationTable) ReserveAll(ctx context.Context, owner string, ids []s
 	keys := append([]string(nil), ids...)
 	sort.Strings(keys)
 	keys = dedupe(keys)
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	reserved := make([]string, 0, len(keys))
 	for _, id := range keys {
-		if current := t.owners[id]; current != "" && current != owner {
-			return ToolReservation{}, platform.ErrConflict
+		if current := t.lookupOwner(id); current != "" && current != owner {
+			return ToolReservation{Owner: owner, ToolIDs: reserved, Generation: t.generation}, platform.ErrConflict
 		}
+		generation := t.nextGeneration()
+		t.publishOwner(id, owner)
+		reserved = append(reserved, id)
+		_ = generation
 	}
-	t.generation++
-	for _, id := range keys {
-		t.owners[id] = owner
-	}
-	return ToolReservation{Owner: owner, ToolIDs: keys, Generation: t.generation}, nil
+	return ToolReservation{Owner: owner, ToolIDs: reserved, Generation: t.generation}, nil
 }
 func (t *ReservationTable) Release(ctx context.Context, r ToolReservation) error {
 	if err := ctx.Err(); err != nil {
@@ -72,3 +71,12 @@ func dedupe(in []string) []string {
 	}
 	return out
 }
+
+func (t *ReservationTable) lookupOwner(id string) string { return t.owners[id] }
+func (t *ReservationTable) nextGeneration() int64 {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.generation++
+	return t.generation
+}
+func (t *ReservationTable) publishOwner(id, owner string) { t.owners[id] = owner }
