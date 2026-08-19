@@ -24,16 +24,22 @@ func (r *MountRegistry) Mount(ctx context.Context, m Mount) (Mount, error) {
 	if err := ctx.Err(); err != nil {
 		return Mount{}, err
 	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.byReticle == nil {
+		r.byReticle = map[string]Mount{}
+	}
+	if r.bySlot == nil {
+		r.bySlot = map[string]Mount{}
+	}
 	if _, ok := r.byReticle[m.ReticleID]; ok {
 		return Mount{}, platform.ErrConflict
 	}
 	if _, ok := r.bySlot[m.SlotID]; ok {
 		return Mount{}, platform.ErrConflict
 	}
-	r.mu.Lock()
 	r.generation++
 	m.Generation = r.generation
-	r.mu.Unlock()
 	r.byReticle[m.ReticleID] = m
 	r.bySlot[m.SlotID] = m
 	return m, nil
