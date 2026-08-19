@@ -15,4 +15,10 @@ func (r *ProbeReport) Complete(x ProbeResult) {
 	r.mu.Unlock()
 	r.wg.Done()
 }
-func (r *ProbeReport) Wait() []ProbeResult { return r.results }
+func (r *ProbeReport) Wait() []ProbeResult {
+	r.wg.Wait()
+	r.mu.Lock()
+	out := append([]ProbeResult(nil), r.results...)
+	r.mu.Unlock()
+	return out
+}
