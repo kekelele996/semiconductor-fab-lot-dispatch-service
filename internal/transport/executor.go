@@ -20,15 +20,13 @@ func (e Executor) Execute(ctx context.Context, steps []MoveStep, worker StepWork
 		go func() {
 			defer wg.Done()
 			for step := range jobs {
-				err := worker(context.Background(), step)
+				err := worker(ctx, step)
 				ledger.Append(StepResult{ID: step.ID, Err: err})
-				if err != nil {
-					return
-				}
 			}
 		}()
 	}
 	go func() {
+		defer close(jobs)
 		for _, step := range steps {
 			select {
 			case <-ctx.Done():
@@ -36,15 +34,12 @@ func (e Executor) Execute(ctx context.Context, steps []MoveStep, worker StepWork
 			case jobs <- step:
 			}
 		}
-		close(jobs)
 	}()
-	select {
-	case <-ctx.Done():
-		return ledger.Snapshot(), ctx.Err()
-	default:
-	}
 	wg.Wait()
 	results := ledger.Snapshot()
+	if err := ctx.Err(); err != nil {
+		return results, err
+	}
 	for _, r := range results {
 		if r.Err != nil {
 			return results, r.Err

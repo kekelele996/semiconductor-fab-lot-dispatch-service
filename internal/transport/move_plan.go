@@ -16,10 +16,16 @@ type ResultLedger struct {
 }
 
 func (l *ResultLedger) Append(r StepResult) {
+	l.mu.Lock()
 	l.results = append(l.results, r)
+	l.mu.Unlock()
 }
 func (l *ResultLedger) Snapshot() []StepResult {
-	return l.results
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	out := make([]StepResult, len(l.results))
+	copy(out, l.results)
+	return out
 }
 
 type StepWorker func(context.Context, MoveStep) error
