@@ -12,8 +12,6 @@ func (e Executor) Execute(ctx context.Context, steps []MoveStep, worker StepWork
 	if limit < 1 {
 		limit = 1
 	}
-	runCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
 	jobs := make(chan MoveStep)
 	ledger := &ResultLedger{}
 	var wg sync.WaitGroup
@@ -21,42 +19,32 @@ func (e Executor) Execute(ctx context.Context, steps []MoveStep, worker StepWork
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for {
-				select {
-				case <-runCtx.Done():
+			for step := range jobs {
+				err := worker(context.Background(), step)
+				ledger.Append(StepResult{ID: step.ID, Err: err})
+				if err != nil {
 					return
-				case step, ok := <-jobs:
-					if !ok {
-						return
-					}
-					err := worker(runCtx, step)
-					ledger.Append(StepResult{ID: step.ID, Err: err})
-					if err != nil {
-						cancel()
-						return
-					}
 				}
 			}
 		}()
 	}
-	sendDone := make(chan struct{})
 	go func() {
-		defer close(sendDone)
-		defer close(jobs)
 		for _, step := range steps {
 			select {
-			case <-runCtx.Done():
+			case <-ctx.Done():
 				return
 			case jobs <- step:
 			}
 		}
+		close(jobs)
 	}()
-	<-sendDone
+	select {
+	case <-ctx.Done():
+		return ledger.Snapshot(), ctx.Err()
+	default:
+	}
 	wg.Wait()
 	results := ledger.Snapshot()
-	if err := ctx.Err(); err != nil {
-		return results, err
-	}
 	for _, r := range results {
 		if r.Err != nil {
 			return results, r.Err
