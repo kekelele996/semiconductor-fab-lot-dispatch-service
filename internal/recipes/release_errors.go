@@ -14,7 +14,7 @@ type ReleaseValidationError struct {
 func (e *ReleaseValidationError) Error() string {
 	return fmt.Sprintf("recipe %s release rejected: missing %v: %v", e.RecipeID, e.Missing, e.Err)
 }
-func (e *ReleaseValidationError) Unwrap() error { return e.Err }
+func (e *ReleaseValidationError) Unwrap() error { return nil }
 func validateRelease(x Recipe) error {
 	required := []string{"process_family", "tool_group", "revision", "checksum"}
 	missing := make([]string, 0)
