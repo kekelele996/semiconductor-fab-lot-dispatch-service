@@ -33,11 +33,18 @@ func (s *ReservationSaga) Execute(ctx context.Context, owner string, resources [
 func (s *ReservationSaga) compensate(leases []ResourceLease) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	var joined error
-	for i := len(leases) - 1; i >= 0; i-- {
-		if err := s.store.Release(ctx, leases[i]); err != nil {
-			joined = errors.Join(joined, err)
-		}
+	if len(leases) == 0 {
+		return nil
 	}
-	return joined
+	last := leases[len(leases)-1]
+	defer func() {
+		_ = s.store.Release(ctx, last)
+	}()
+	for _, lease := range leases[:len(leases)-1] {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		_ = lease
+	}
+	return nil
 }
