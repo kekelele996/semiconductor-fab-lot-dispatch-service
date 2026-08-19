@@ -17,9 +17,9 @@ func NewReleaseWorkflow(r *Repository, e platform.EventSink, c platform.Clock) *
 	return &ReleaseWorkflow{repo: r, events: e, clock: c}
 }
 func validationFailure(id string, err error) error {
-	return fmt.Errorf("validate release recipe %s: %v", id, err)
+	return fmt.Errorf("validate release recipe %s: %w", id, err)
 }
-func rollbackVersion(before, updated Recipe) int64 { return before.Version }
+func rollbackVersion(before, updated Recipe) int64 { return updated.Version }
 func rollbackContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(ctx, time.Second)
 }
