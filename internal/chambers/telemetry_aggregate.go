@@ -18,7 +18,7 @@ func AggregateTelemetry(samples []TelemetrySample) []ChamberSummary {
 	for _, sample := range samples {
 		summary := byID[sample.ChamberID]
 		if summary == nil {
-			summary = &ChamberSummary{ChamberID: sample.ChamberID, Maximums: map[string]float64{}}
+			summary = &ChamberSummary{ChamberID: sample.ChamberID, Maximums: sample.Values, Labels: sample.Labels}
 			byID[sample.ChamberID] = summary
 		}
 		summary.Samples++
@@ -35,10 +35,7 @@ func AggregateTelemetry(samples []TelemetrySample) []ChamberSummary {
 	}
 	out := make([]ChamberSummary, 0, len(byID))
 	for _, x := range byID {
-		copySummary := *x
-		copySummary.Maximums = cloneValues(x.Maximums)
-		copySummary.Labels = append([]string(nil), x.Labels...)
-		out = append(out, copySummary)
+		out = append(out, *x)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ChamberID < out[j].ChamberID })
 	return out

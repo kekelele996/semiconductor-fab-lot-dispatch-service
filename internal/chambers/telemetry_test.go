@@ -24,3 +24,22 @@ func TestTelemetrySnapshotsDoNotShareMutableState(t *testing.T) {
 		t.Fatal("aggregate shares storage")
 	}
 }
+
+func TestTelemetryAggregateDoesNotExposeAccumulatorStorage(t *testing.T) {
+	w := NewTelemetryWindow(3)
+	w.Add(TelemetrySample{ChamberID: "c2", At: time.Now(), Values: map[string]float64{"temperature": 410}, Labels: []string{"qualified"}})
+	first := AggregateTelemetry(w.Snapshot())
+	first[0].Maximums["temperature"] = 999
+	first[0].Labels[0] = "changed"
+	second := AggregateTelemetry(w.Snapshot())
+	if second[0].Maximums["temperature"] != 410 || second[0].Labels[0] != "qualified" {
+		t.Fatalf("aggregate polluted: %#v", second[0])
+	}
+	samples := []TelemetrySample{{ChamberID: "c3", At: time.Now(), Values: map[string]float64{"pressure": 3.4}, Labels: []string{"stable"}}}
+	result := AggregateTelemetry(samples)
+	samples[0].Values["pressure"] = 77
+	samples[0].Labels[0] = "changed"
+	if result[0].Maximums["pressure"] != 3.4 || result[0].Labels[0] != "stable" {
+		t.Fatalf("source escaped into aggregate: %#v", result[0])
+	}
+}
