@@ -36,3 +36,14 @@ func TestMountServiceInitializesAndSerializesSlotOwnership(t *testing.T) {
 		t.Fatal("slot not recorded")
 	}
 }
+
+func TestMountServiceAcceptsNilRegistryConfiguration(t *testing.T) {
+	svc := NewMountService(nil, &platform.MemoryEventSink{}, platform.NewManualClock(time.Now()))
+	mounted, err := svc.MountForExposure(context.Background(), "rt-zero", "litho-2", "slot-zero", "clean")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mounted.ReticleID != "rt-zero" {
+		t.Fatalf("mount=%#v", mounted)
+	}
+}

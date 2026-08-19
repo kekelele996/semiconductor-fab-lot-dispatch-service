@@ -20,7 +20,13 @@ func (s *MountService) MountForExposure(ctx context.Context, reticleID, toolID, 
 	if strings.TrimSpace(reticleID) == "" || strings.TrimSpace(toolID) == "" || strings.TrimSpace(slotID) == "" || strings.TrimSpace(zone) == "" {
 		return Mount{}, platform.ErrInvariant
 	}
-	m, err := s.registry.Mount(ctx, Mount{ReticleID: reticleID, ToolID: toolID, SlotID: slotID, Zone: zone})
+	var registry interface {
+		Mount(context.Context, Mount) (Mount, error)
+	} = s.registry
+	if registry == nil {
+		registry = NewMountRegistry()
+	}
+	m, err := registry.Mount(ctx, Mount{ReticleID: reticleID, ToolID: toolID, SlotID: slotID, Zone: zone})
 	if err != nil {
 		return Mount{}, platform.Wrap("mount", "reticle", reticleID, err)
 	}
