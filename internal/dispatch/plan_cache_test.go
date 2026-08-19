@@ -32,3 +32,16 @@ func TestPlanCachePublishesImmutableSnapshots(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestBuildPlanCopiesScoreInput(t *testing.T) {
+	input := PlanInput{FabID: "fab", Version: 2, Lots: []string{"a"}, EligibleTools: map[string][]string{"a": {"t1"}}, Scores: map[string]int64{"a": 7}}
+	plan := BuildPlan(input)
+	input.Scores["a"] = 999
+	if plan.Scores["a"] != 7 {
+		t.Fatalf("plan scores changed: %#v", plan.Scores)
+	}
+	plan.Scores["a"] = 42
+	if input.Scores["a"] != 999 {
+		t.Fatalf("input scores changed through plan: %#v", input.Scores)
+	}
+}

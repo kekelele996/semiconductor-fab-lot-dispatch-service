@@ -34,5 +34,5 @@ func BuildPlan(input PlanInput) DispatchPlan {
 			}
 		}
 	}
-	return DispatchPlan{FabID: input.FabID, Version: input.Version, Assignments: assignments, Order: order, Scores: cloneScores(input.Scores)}
+	return DispatchPlan{FabID: input.FabID, Version: input.Version, Assignments: assignments, Order: order, Scores: input.Scores}
 }
