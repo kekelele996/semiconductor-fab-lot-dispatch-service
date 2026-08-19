@@ -8,10 +8,10 @@ type Assembler struct {
 }
 
 func (a Assembler) Assemble(input []WaferLot, recipe, zone string) AssembledBatch {
-	candidates := input[:0]
+	candidates := make([]WaferLot, 0, len(input))
 	for _, lot := range input {
 		if lot.Recipe == recipe && lot.Zone == zone {
-			candidates = append(candidates, lot)
+			candidates = append(candidates, lot.Clone())
 		}
 	}
 	sort.SliceStable(candidates, func(i, j int) bool {
