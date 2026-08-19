@@ -30,21 +30,25 @@ func (s *ReservationSaga) Execute(ctx context.Context, owner string, resources [
 	}
 	return leases, nil
 }
+
+// compensate releases every already-acquired lease so that a partial saga
+// leaves no resource held. Leases are released in reverse acquisition order,
+// each release error is preserved via MergeCleanupErrors, and the generation
+// guard in SagaStore.Release prevents a stale compensation from dropping a
+// lease a later acquire legitimately re-obtained.
 func (s *ReservationSaga) compensate(leases []ResourceLease) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	if len(leases) == 0 {
 		return nil
 	}
-	last := leases[len(leases)-1]
-	defer func() {
-		_ = s.store.Release(ctx, last)
-	}()
-	for _, lease := range leases[:len(leases)-1] {
+	errs := make([]error, 0, len(leases))
+	for _, lease := range CompensationOrder(leases) {
 		if err := ctx.Err(); err != nil {
-			return err
+			errs = append(errs, err)
+			return MergeCleanupErrors(errs)
 		}
-		_ = lease
+		errs = append(errs, s.store.Release(ctx, lease))
 	}
-	return nil
+	return MergeCleanupErrors(errs)
 }

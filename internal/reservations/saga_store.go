@@ -53,11 +53,18 @@ func (s *SagaStore) Owner(resource string) string {
 	return s.owners[resource].Owner
 }
 
+// sameLeaseHolder reports whether requested still holds the resource: the
+// resource, owner, and generation must all match. The generation check stops a
+// stale compensation (from an older acquire) from releasing a lease that a
+// later acquire legitimately re-obtained.
 func sameLeaseHolder(current, requested ResourceLease) bool {
 	if current.Resource != requested.Resource {
 		return false
 	}
 	if current.Owner != requested.Owner {
+		return false
+	}
+	if current.Generation != requested.Generation {
 		return false
 	}
 	return true
