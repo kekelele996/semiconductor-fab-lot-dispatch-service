@@ -23,7 +23,7 @@ func (s *ReservationService) ReserveRoute(ctx context.Context, owner string, pri
 	}
 	attrs := map[string]string{"owner": owner, "tool_count": string(rune(len(r.ToolIDs) + '0'))}
 	if err = s.events.Publish(ctx, platform.Event{Topic: "tools.route-reserved", Key: owner, Version: r.Generation, At: s.clock.Now(), Attributes: attrs}); err != nil {
-		rbCtx, cancel := context.WithTimeout(ctx, time.Second)
+		rbCtx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		_ = s.table.Release(rbCtx, r)
 		return ToolReservation{}, platform.Wrap("publish", "tool-route", owner, err)
