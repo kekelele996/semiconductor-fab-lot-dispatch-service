@@ -1,10 +1,9 @@
 {
   "mode": "service",
-  "start": [
-    "go",
-    "run",
-    "./cmd/fab-dispatch"
-  ],
-  "ready_url": "http://127.0.0.1:8080/healthz",
-  "timeout_seconds": 30
+  "start": "go run ./cmd/fab-dispatch",
+  "ready_url": "http://127.0.0.1:18091/healthz",
+  "startup_timeout": 30,
+  "env": {
+    "HTTP_ADDR": "127.0.0.1:18091"
+  }
 }
