@@ -8,16 +8,8 @@ import (
 type Probe func(context.Context) (ProbeResult, error)
 type ProbeRunner struct{ Parallelism int }
 
-func workerContext(ctx context.Context) context.Context { return context.Background() }
-func waitWorkers(ctx context.Context, wg *sync.WaitGroup) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-		wg.Wait()
-		return nil
-	}
-}
+func workerContext(ctx context.Context) context.Context         { return ctx }
+func waitWorkers(ctx context.Context, wg *sync.WaitGroup) error { wg.Wait(); return ctx.Err() }
 func (r ProbeRunner) Run(ctx context.Context, probes map[string]Probe) ([]ProbeResult, error) {
 	names := make(chan string)
 	set := NewProbeSet()
