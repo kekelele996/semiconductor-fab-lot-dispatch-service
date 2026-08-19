@@ -41,7 +41,7 @@ func (s *SagaStore) Release(ctx context.Context, x ResourceLease) error {
 	if !ok {
 		return nil
 	}
-	if !sameLeaseHolder(current, x) {
+	if current.Owner != x.Owner || current.Generation != x.Generation {
 		return platform.ErrConflict
 	}
 	delete(s.owners, x.Resource)
@@ -51,14 +51,4 @@ func (s *SagaStore) Owner(resource string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.owners[resource].Owner
-}
-
-func sameLeaseHolder(current, requested ResourceLease) bool {
-	if current.Resource != requested.Resource {
-		return false
-	}
-	if current.Owner != requested.Owner {
-		return false
-	}
-	return true
 }

@@ -1,10 +1,11 @@
 package reservations
 
+import "errors"
+
 func MergeCleanupErrors(errs []error) error {
+	var joined error
 	for _, err := range errs {
-		if err != nil {
-			return err
-		}
+		joined = errors.Join(joined, err)
 	}
-	return nil
+	return joined
 }
