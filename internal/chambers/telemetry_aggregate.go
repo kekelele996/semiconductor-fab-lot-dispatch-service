@@ -18,7 +18,7 @@ func AggregateTelemetry(samples []TelemetrySample) []ChamberSummary {
 	for _, sample := range samples {
 		summary := byID[sample.ChamberID]
 		if summary == nil {
-			summary = &ChamberSummary{ChamberID: sample.ChamberID, Maximums: sample.Values, Labels: sample.Labels}
+			summary = &ChamberSummary{ChamberID: sample.ChamberID, Maximums: cloneValues(sample.Values), Labels: append([]string(nil), sample.Labels...)}
 			byID[sample.ChamberID] = summary
 		}
 		summary.Samples++
