@@ -33,9 +33,7 @@ func (c *LeaseCoordinator) AcquireBest(ctx context.Context, owner string, candid
 		}
 		event := platform.Event{Topic: "lots.lease-acquired", Key: lease.LotID, Version: lease.Generation, At: c.clock.Now(), Attributes: map[string]string{"owner": owner}}
 		if err = c.events.Publish(ctx, event); err != nil {
-			rollbackCtx, cancel := context.WithTimeout(context.Background(), time.Second)
-			defer cancel()
-			_ = c.store.Release(rollbackCtx, lease)
+			c.rollbackFailedAcquire(ctx, lease)
 			return Lease{}, platform.Wrap("publish", "lot-lease", lease.LotID, err)
 		}
 		return lease, nil
@@ -47,4 +45,13 @@ func (c *LeaseCoordinator) Release(ctx context.Context, lease Lease) error {
 		return err
 	}
 	return c.events.Publish(ctx, platform.Event{Topic: "lots.lease-released", Key: lease.LotID, Version: lease.Generation, At: c.clock.Now(), Attributes: map[string]string{"owner": lease.Owner}})
+}
+
+func (c *LeaseCoordinator) rollbackFailedAcquire(ctx context.Context, lease Lease) {
+	rollbackCtx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	if _, active := c.store.Active(lease.LotID, c.clock.Now()); !active {
+		return
+	}
+	_ = c.store.Release(rollbackCtx, lease)
 }

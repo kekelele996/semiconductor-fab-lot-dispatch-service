@@ -23,13 +23,13 @@ func (s *LeaseStore) TryAcquire(ctx context.Context, lotID, owner string, now ti
 	if err := ctx.Err(); err != nil {
 		return Lease{}, err
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	if current, ok := s.leases[lotID]; ok && current.ExpiresAt.After(now) {
 		return Lease{}, platform.ErrConflict
 	}
+	s.mu.Lock()
 	s.generation++
 	lease := Lease{LotID: lotID, Owner: owner, Generation: s.generation, ExpiresAt: now.Add(ttl)}
+	s.mu.Unlock()
 	s.leases[lotID] = lease
 	return lease, nil
 }
@@ -39,12 +39,8 @@ func (s *LeaseStore) Release(ctx context.Context, lease Lease) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	current, ok := s.leases[lease.LotID]
-	if !ok {
+	if _, ok := s.leases[lease.LotID]; !ok {
 		return nil
-	}
-	if current.Generation != lease.Generation || current.Owner != lease.Owner {
-		return platform.ErrConflict
 	}
 	delete(s.leases, lease.LotID)
 	return nil

@@ -53,3 +53,23 @@ func TestLeaseCoordinatorPublishFailureRollsBack(t *testing.T) {
 		t.Fatal("lease leaked after publish failure")
 	}
 }
+
+type cancelingLeaseSink struct{ cancel context.CancelFunc }
+
+func (s cancelingLeaseSink) Publish(context.Context, platform.Event) error {
+	s.cancel()
+	return errors.New("broker canceled request")
+}
+func TestLeaseCoordinatorCanceledPublishStillRollsBack(t *testing.T) {
+	clock := platform.NewManualClock(time.Now())
+	store := NewLeaseStore()
+	ctx, cancel := context.WithCancel(context.Background())
+	c := NewLeaseCoordinator(store, clock, cancelingLeaseSink{cancel: cancel}, time.Minute)
+	_, err := c.AcquireBest(ctx, "dispatcher", []Candidate{{ID: "lot-cancel", Feasible: true}})
+	if err == nil {
+		t.Fatal("expected publish failure")
+	}
+	if _, ok := store.Active("lot-cancel", clock.Now()); ok {
+		t.Fatal("lease leaked after canceled publish")
+	}
+}
