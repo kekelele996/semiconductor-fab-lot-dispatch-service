@@ -23,13 +23,13 @@ func (s *LeaseStore) TryAcquire(ctx context.Context, lotID, owner string, now ti
 	if err := ctx.Err(); err != nil {
 		return Lease{}, err
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if current, ok := s.leases[lotID]; ok && current.ExpiresAt.After(now) {
 		return Lease{}, platform.ErrConflict
 	}
-	s.mu.Lock()
 	s.generation++
 	lease := Lease{LotID: lotID, Owner: owner, Generation: s.generation, ExpiresAt: now.Add(ttl)}
-	s.mu.Unlock()
 	s.leases[lotID] = lease
 	return lease, nil
 }

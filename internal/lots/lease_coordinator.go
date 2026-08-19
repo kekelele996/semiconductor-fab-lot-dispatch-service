@@ -33,7 +33,7 @@ func (c *LeaseCoordinator) AcquireBest(ctx context.Context, owner string, candid
 		}
 		event := platform.Event{Topic: "lots.lease-acquired", Key: lease.LotID, Version: lease.Generation, At: c.clock.Now(), Attributes: map[string]string{"owner": owner}}
 		if err = c.events.Publish(ctx, event); err != nil {
-			c.rollbackFailedAcquire(ctx, lease)
+			c.rollbackFailedAcquire(lease)
 			return Lease{}, platform.Wrap("publish", "lot-lease", lease.LotID, err)
 		}
 		return lease, nil
@@ -47,8 +47,11 @@ func (c *LeaseCoordinator) Release(ctx context.Context, lease Lease) error {
 	return c.events.Publish(ctx, platform.Event{Topic: "lots.lease-released", Key: lease.LotID, Version: lease.Generation, At: c.clock.Now(), Attributes: map[string]string{"owner": lease.Owner}})
 }
 
-func (c *LeaseCoordinator) rollbackFailedAcquire(ctx context.Context, lease Lease) {
-	rollbackCtx, cancel := context.WithTimeout(ctx, time.Second)
+func (c *LeaseCoordinator) rollbackFailedAcquire(lease Lease) {
+	// Compensating cleanup must run even when the request that triggered it was
+	// canceled: derive from context.Background so a canceled parent does not
+	// short-circuit Release and leak the lease.
+	rollbackCtx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	if _, active := c.store.Active(lease.LotID, c.clock.Now()); !active {
 		return
